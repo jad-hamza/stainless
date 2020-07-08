@@ -913,6 +913,11 @@ trait CodeExtraction extends ASTExtractors {
     }
   }
 
+  private def widenTypeParameter2(tpe: xt.Type): xt.Type = tpe match {
+    case tp:xt.TypeParameter => widenTypeParameter2(tp.upperBound)
+    case tpe => tpe
+  }
+
   private def extractTree(tr: Tree)(implicit dctx: DefContext): xt.Expr = (tr match {
     case ExObjectDef(_, _) => xt.UnitLiteral()
     case ExCaseClassSyntheticJunk() => xt.UnitLiteral()
@@ -1301,7 +1306,7 @@ trait CodeExtraction extends ASTExtractors {
             xt.ApplyLetRec(id, tparams.map(_.tp), tpe, tps.map(extractType), extractArgs(sym, args)).setPos(c.pos)
         }
 
-      case Some(lhs) => extractType(lhs)(dctx.setResolveTypes(true)) match {
+      case Some(lhs) => widenTypeParameter2(extractType(lhs)(dctx.setResolveTypes(true))) match {
         case ct: xt.ClassType =>
           val isField = sym.isParamAccessor || sym.isCaseAccessor
           val isMethod = sym.isMethod || sym.isAccessor || !isField
