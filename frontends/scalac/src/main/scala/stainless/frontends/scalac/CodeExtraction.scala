@@ -1301,7 +1301,7 @@ trait CodeExtraction extends ASTExtractors {
             xt.ApplyLetRec(id, tparams.map(_.tp), tpe, tps.map(extractType), extractArgs(sym, args)).setPos(c.pos)
         }
 
-      case Some(lhs) => extractType(lhs)(dctx.setResolveTypes(true)) match {
+      case Some(lhs) => extractType(lhs.tpe.widen)(dctx.setResolveTypes(true), lhs.pos) match {
         case ct: xt.ClassType =>
           val isField = sym.isParamAccessor || sym.isCaseAccessor
           val isMethod = sym.isMethod || sym.isAccessor || !isField
