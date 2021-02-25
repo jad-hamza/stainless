@@ -566,7 +566,10 @@ trait CodeExtraction extends ASTExtractors {
     val id = getIdentifier(sym)
     val isAbstract = rhs == EmptyTree
 
-    var flags = annotationsOf(sym).filterNot(annot => annot == xt.IsMutable || annot.name == "inlineInvariant") ++
+    var flags = annotationsOf(sym).filterNot(annot =>
+      annot == xt.IsMutable ||
+      annot.name == "inlineInvariant"
+    ) ++
       (if (sym.isImplicit && sym.isSynthetic) Seq(xt.Inline, xt.Synthetic) else Seq()) ++
       (if (sym.isPrivate) Seq(xt.Private) else Seq()) ++
       (if (sym.isFinal) Seq(xt.Final) else Seq()) ++
@@ -936,6 +939,8 @@ trait CodeExtraction extends ASTExtractors {
       val rb = extractTree(body)
       val rc = cses.map(extractMatchCase)
       xt.Try(rb, rc, if (fin == EmptyTree) None else Some(extractTree(fin)))
+
+    case Return(e) => xt.Return(extractTree(e))
 
     case Throw(ex) =>
       xt.Throw(extractTree(ex))
@@ -1608,7 +1613,7 @@ trait CodeExtraction extends ASTExtractors {
     }
 
     // default behaviour is to complain :)
-    case _ => outOfSubsetError(tr, s"Stainless does not support expression: `$tr`")
+    case _ => outOfSubsetError(tr, s"Stainless does not support expression (${tr.getClass}): `$tr`")
   }).ensurePos(tr.pos)
 
   /** Inject implicit widening casts according to the Java semantics (5.6.2. Binary Numeric Promotion) */

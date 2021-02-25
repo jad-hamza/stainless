@@ -22,6 +22,7 @@ package object throwing {
 
   def extractor(implicit ctx: inox.Context) = {
     // utils.DebugPipeline("ExceptionLifting", ExceptionLifting(trees, imperative.trees))
+    utils.DebugPipeline("ReturnElimination", ReturnElimination(trees)) andThen
     ExtractionPipeline(new CheckingTransformer {
       override val s: trees.type = trees
       override val t: imperative.trees.type = imperative.trees

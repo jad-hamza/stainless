@@ -59,6 +59,8 @@ class BatchedCallBack(components: Seq[Component])(implicit val context: inox.Con
       .withFunctions(currentFunctions)
       .withTypeDefs(currentTypeDefs)
 
+    // println(allSymbols.debugString()(new xt.PrinterOptions()))
+
     val initialSymbols = strictBVCleaner.transform(LibraryFilter.removeLibraryFlag(allSymbols))
 
     def notUserFlag(f: xt.Flag) = f.name == "library" || f == xt.Synthetic
@@ -72,7 +74,8 @@ class BatchedCallBack(components: Seq[Component])(implicit val context: inox.Con
     val keepGroups = context.options.findOptionOrDefault(optKeep)
 
     def hasKeepFlag(flags: Seq[xt.Flag]) =
-      keepGroups.exists(g => flags.contains(xt.Annotation("keep", Seq(xt.StringLiteral(g)))))
+      flags.exists(_.name == "keep") ||
+      keepGroups.exists(g => flags.contains(xt.Annotation("keepFor", Seq(xt.StringLiteral(g)))))
 
     def keepDefinition(defn: xt.Definition): Boolean =
       hasKeepFlag(defn.flags) || userDependencies.contains(defn.id)
@@ -82,8 +85,17 @@ class BatchedCallBack(components: Seq[Component])(implicit val context: inox.Con
                   .withFunctions(initialSymbols.functions.values.filter(keepDefinition).toSeq)
                   .withTypeDefs(initialSymbols.typeDefs.values.filter(keepDefinition).toSeq)
 
+    // println("\n\n\n")
+    // println("=" * 100)
+    // println("presymbols")
+    // println(preSymbols.debugString()(new xt.PrinterOptions()))
+
     val symbols = Recovery.recover(preSymbols)
 
+    // println("\n\n\n")
+    // println("=" * 100)
+    // println("symbols")
+    // println(symbols.debugString()(new xt.PrinterOptions()))
     val errors = TreeSanitizer(xt).enforce(symbols)
     if (!errors.isEmpty) {
       reportErrorFooter(symbols)

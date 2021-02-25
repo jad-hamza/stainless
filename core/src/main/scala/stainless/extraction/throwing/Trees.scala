@@ -9,6 +9,14 @@ trait Trees extends imperative.Trees { self =>
   protected def getExceptionType(implicit s: Symbols): Option[Type] =
     s.lookup.get[ClassDef]("stainless.lang.Exception").map(cd => ClassType(cd.id, Seq()))
 
+  /** Return an [[ast.Expressions.Expr]].
+    *
+    * @param expr The expression to return
+    */
+  sealed case class Return(expr: Expr) extends Expr with CachingTyped {
+    override protected def computeType(implicit s: Symbols): Type = expr.getType
+  }
+
   /** Throwing clause of an [[ast.Expressions.Expr]]. Corresponds to the Stainless keyword *throwing*
     *
     * @param body The body of the expression. It can contain at most one [[ast.Expressions.Require]] and
@@ -86,6 +94,9 @@ trait Printer extends imperative.Printer {
     case Throw(ex) =>
       p"throw $ex"
 
+    case Return(e) =>
+      p"return $e"
+
     case Try(body, cases, fin) =>
       p"""|try {
           |  $body
@@ -102,12 +113,13 @@ trait Printer extends imperative.Printer {
 
   override protected def noBracesSub(e: Tree): Seq[Expr] = e match {
     case Throwing(bd, pred) => Seq(bd, pred)
+    case Return(e) => Seq(e)
     case Try(e, _, f) => e +: f.toSeq
     case _ => super.noBracesSub(e)
   }
 
   override protected def requiresParentheses(ex: Tree, within: Option[Tree]): Boolean = (ex, within) match {
-    case (_, Some(_: Throwing | _: Try)) => false
+    case (_, Some(_: Throwing | _: Return | _: Try)) => false
     case _ => super.requiresParentheses(ex, within)
   }
 }
@@ -151,6 +163,9 @@ trait TreeDeconstructor extends imperative.TreeDeconstructor {
   override def deconstruct(e: s.Expr): Deconstructed[t.Expr] = e match {
     case s.Throwing(body, pred) =>
       (Seq(), Seq(), Seq(body, pred), Seq(), Seq(), (_, _, es, _, _) => t.Throwing(es(0), es(1).asInstanceOf[t.Lambda]))
+
+    case s.Return(e) =>
+      (Seq(), Seq(), Seq(e), Seq(), Seq(), (_, _, es, _, _) => t.Return(es(0)))
 
     case s.Throw(ex) =>
       (Seq(), Seq(), Seq(ex), Seq(), Seq(), (_, _, es, _, _) => t.Throw(es.head))
