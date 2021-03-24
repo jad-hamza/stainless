@@ -333,14 +333,27 @@ trait EffectsAnalyzer extends oo.CachingPhase {
       case ADTFieldAccessor(fid) +: rest =>
         getTargets(args(symbols.getConstructor(id).fields.indexWhere(_.id == fid)), rest)
       case _ =>
-        throw MalformedStainlessCode(expr, s"Couldn't compute effect targets in ADT: ${expr.asString}")
+        throw MalformedStainlessCode(expr,
+          s"Couldn't compute effect targets in ADT: ${expr.asString}\n" +
+          s"Path: ${path.map(_.asString)}")
     }
 
     case ClassConstructor(ct, args) => path match {
       case ClassFieldAccessor(fid) +: rest =>
         getTargets(args(ct.tcd.fields.indexWhere(_.id == fid)), rest)
       case _ =>
-        throw MalformedStainlessCode(expr, s"Couldn't compute effect targets in class constructor: ${expr.asString}")
+        throw MalformedStainlessCode(expr,
+          s"Couldn't compute effect targets in class constructor: ${expr.asString}\n" +
+          s"Path: ${path.map(_.asString)}")
+    }
+
+    case FiniteArray(args, _) => path match {
+      case ArrayAccessor(Int32Literal(i)) +: rest =>
+        getTargets(args(i), rest)
+      case _ =>
+        throw MalformedStainlessCode(expr,
+          s"Couldn't compute effect targets in array: ${expr.asString}\n" +
+          s"Path: ${path.map(_.asString)}")
     }
 
     case Assert(_, _, e) => getTargets(e, path)
@@ -395,7 +408,10 @@ trait EffectsAnalyzer extends oo.CachingPhase {
       }
 
     case _ =>
-      throw MalformedStainlessCode(expr, s"Couldn't compute effect targets in (${expr.getClass}): ${expr.asString}")
+      throw MalformedStainlessCode(expr,
+        s"Couldn't compute effect targets in (${expr.getClass}): ${expr.asString}\n" +
+        s"Path: ${path.map(_.asString)}"
+      )
   }
 
   def getTargets(expr: Expr)(implicit symbols: Symbols): Set[Target] = {
@@ -455,6 +471,11 @@ trait EffectsAnalyzer extends oo.CachingPhase {
           }
           guard.toSeq.flatMap(rec(_, newEnv)).toSet ++ rec(rhs, newEnv)
         }
+
+      case Swap(array1, index1, array2, index2) =>
+        rec(array1, env) ++ rec(index1, env) ++ rec(array2, env) ++ rec(index2, env) ++
+        effect(array1, env).map(_ + ArrayAccessor(index1)) ++
+        effect(array2, env).map(_ + ArrayAccessor(index2))
 
       case ArrayUpdate(o, idx, v) =>
         rec(o, env) ++ rec(idx, env) ++ rec(v, env) ++
