@@ -482,6 +482,7 @@ trait ASTExtractors {
         case Apply(ExSymbol("stainless", "lang", "package$", "SpecsDecorations"), Seq(arg)) => Some(arg)
         case Apply(ExSymbol("stainless", "lang", "package$", "StringDecorations"), Seq(arg)) => Some(arg)
         case Apply(ExSymbol("stainless", "lang", "package$", "WhileDecorations"), Seq(arg)) => Some(arg)
+        case Apply(ExSymbol("stainless", "lang", "StaticChecks$", "WhileDecorations"), Seq(arg)) => Some(arg)
         case _ => Some(tree)
       }
     }
@@ -608,6 +609,18 @@ trait ASTExtractors {
           ),
           List(pred)
         ) => Some((cond, body, pred))
+
+        case Apply(
+          Select(
+            Apply(
+              ExSymbol("stainless", "lang", "StaticChecks$", "WhileDecorations"),
+              List(ExWhile(cond, body)),
+            ),
+            ExNamed("invariant"),
+          ),
+          List(pred)
+        ) => Some((cond, body, pred))
+
         case _ => None
       }
     }

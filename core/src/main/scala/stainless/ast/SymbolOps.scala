@@ -325,7 +325,8 @@ trait SymbolOps extends inox.ast.SymbolOps { self: TypeOps =>
     * @see [[Expressions.Require]]
     */
   def withPath(expr: Expr, path: Path): Expr = {
-    withShared(path, Seq(expr), { case (cond, Seq(e)) =>
+    implicit val printerOpts = new PrinterOptions(printUniqueIds = true)
+    val res = withShared(path, Seq(expr), { case (cond, Seq(e)) =>
       val specced = BodyWithSpecs(e)
       val speccedWithPre =
         specced.withSpec(
@@ -337,6 +338,11 @@ trait SymbolOps extends inox.ast.SymbolOps { self: TypeOps =>
         )
       speccedWithPre.reconstructed
     }, expr.getPos)
+    println("WITH PATH")
+    println("expr", expr.asString)
+    println("path", path.asString)
+    println("res", res.asString)
+    res
   }
 
   /** Make a String representation for a table of Symbols `s`, only keeping
