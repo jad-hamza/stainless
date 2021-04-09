@@ -343,6 +343,13 @@ trait EffectsAnalyzer extends oo.CachingPhase {
         Set.empty
     }
 
+    case FiniteArray(args, _) => path match {
+      case ArrayAccessor(Int32Literal(i)) +: rest =>
+        getTargets(args(i), rest)
+      case _ =>
+        Set.empty
+    }
+
     case Assert(_, _, e) => getTargets(e, path)
     case Annotated(e, _) => getTargets(e, path)
 
@@ -395,7 +402,10 @@ trait EffectsAnalyzer extends oo.CachingPhase {
       }
 
     case _ =>
-      throw MalformedStainlessCode(expr, s"Couldn't compute effect targets in (${expr.getClass}): ${expr.asString}")
+      throw MalformedStainlessCode(expr,
+        s"Couldn't compute effect targets in (${expr.getClass}): ${expr.asString}\n" +
+        s"Path: ${path.map(_.asString)}"
+      )
   }
 
   def getTargets(expr: Expr)(implicit symbols: Symbols): Set[Target] = {
@@ -455,6 +465,11 @@ trait EffectsAnalyzer extends oo.CachingPhase {
           }
           guard.toSeq.flatMap(rec(_, newEnv)).toSet ++ rec(rhs, newEnv)
         }
+
+      case Swap(array1, index1, array2, index2) =>
+        rec(array1, env) ++ rec(index1, env) ++ rec(array2, env) ++ rec(index2, env) ++
+        effect(array1, env).map(_ + ArrayAccessor(index1)) ++
+        effect(array2, env).map(_ + ArrayAccessor(index2))
 
       case ArrayUpdate(o, idx, v) =>
         rec(o, env) ++ rec(idx, env) ++ rec(v, env) ++
