@@ -401,6 +401,55 @@ trait EffectsAnalyzer extends oo.CachingPhase {
 
     case ArrayLength(_) => Set.empty
 
+    case NoTree(_) => Set.empty
+
+    case Plus(lhs, rhs) => Set.empty
+    case Minus(lhs, rhs) => Set.empty
+    case UMinus(e2) => Set.empty
+    case Times(lhs, rhs) => Set.empty
+    case Division(lhs, rhs) => Set.empty
+
+    case Remainder(lhs, rhs) => Set.empty
+    case Modulo(lhs, rhs) => Set.empty
+
+    case GreaterEquals(lhs, rhs) => Set.empty
+    case LessEquals(lhs, rhs) => Set.empty
+    case GreaterThan(lhs, rhs) => Set.empty
+    case LessThan(lhs, rhs) => Set.empty
+
+    case BVNot(e2) => Set.empty
+    case BVAnd(lhs, rhs) => Set.empty
+    case BVOr(lhs, rhs) => Set.empty
+    case BVXor(lhs, rhs) => Set.empty
+    case BVShiftLeft(lhs, rhs) => Set.empty
+    case BVAShiftRight(lhs, rhs) => Set.empty
+    case BVLShiftRight(lhs, rhs) => Set.empty
+
+    case StringConcat(s1, s2) => Set.empty
+    case SubString(s, start, end) => Set.empty
+    case StringLength(s) => Set.empty
+
+    case BVWideningCast(e2, newType) => Set.empty
+    case BVNarrowingCast(e2, newType) => Set.empty
+
+    case FiniteSet(elements, tpe) => Set.empty
+    case SetUnion(s1, s2) => Set.empty
+    case SetIntersection(s1, s2) => Set.empty
+    case SetDifference(s1, s2) => Set.empty
+    case SubsetOf(s1, s2) => Set.empty
+    case ElementOfSet(element, set) => Set.empty
+    case SetAdd(bag, element) => Set.empty
+
+    case FiniteBag(elements, tpe) => Set.empty
+    case BagUnion(s1, s2) => Set.empty
+    case BagIntersection(s1, s2) => Set.empty
+    case BagDifference(s1, s2) => Set.empty
+    case MultiplicityInBag(element, bag) => Set.empty
+    case BagAdd(bag, element) => Set.empty
+
+    case FiniteMap(pairs, default, from, to) => Set.empty
+    case MapUpdated(m, k, v) => Set.empty
+
     case Block(_, last) => getTargets(last, path)
 
     case Let(vd, e, b) if !symbols.isMutableType(vd.tpe) =>
