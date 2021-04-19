@@ -9,7 +9,7 @@ trait AdtSpecialization
      with SimpleFunctions
      with SimpleSorts
      with SimpleTypeDefs
-     with utils.SyntheticSorts { self =>
+     with utils.OptionSort { self =>
 
   val s: Trees
   val t: Trees
@@ -143,7 +143,11 @@ trait AdtSpecialization
     // option sort will be used by the class result, but this shouldn't be necessary
     (cd, context) =>
       val symbols = context.symbols
-      ClassKey(cd) + descendantKey(cd.id)(symbols) + OptionSort.key(symbols)
+      ClassKey(cd) + descendantKey(cd.id)(symbols) + new SeqKey(
+        symbols.lookup.get[s.ADTSort]("stainless.internal.Option").map(SortKey(_)).toSeq ++
+        symbols.lookup.get[s.FunDef]("stainless.internal.Option.isEmpty").map(FunctionKey(_)) ++
+        symbols.lookup.get[s.FunDef]("stainless.internal.Option.get").map(FunctionKey(_))
+      )
   })
 
   override protected final val typeDefCache = new ExtractionCache[s.TypeDef, TypeDefResult](
@@ -205,10 +209,9 @@ trait AdtSpecialization
             None
           }
 
-          import OptionSort._
           val cons = constructors(cd.id)
           val unapplyFunction = if (root(cd.id) != cd.id && cons != Seq(cd.id)) {
-            Some(mkFunDef(unapplyID(cd.id), t.Unchecked, t.Synthetic, t.IsUnapply(isEmpty, get))
+            Some(mkFunDef(unapplyID(cd.id), t.Unchecked, t.Synthetic, t.IsUnapply(optionIsEmpty, optionGet))
                          (cd.typeArgs.map(_.id.name) : _*) { tparams =>
               val base = T(root(cd.id))(tparams : _*)
               def condition(e: t.Expr): t.Expr = t.orJoin(cons.map(t.IsConstructor(e, _)))
@@ -241,8 +244,8 @@ trait AdtSpecialization
 
   override protected final def extractSymbols(context: TransformerContext, symbols: s.Symbols): t.Symbols = {
     val newSymbols = super.extractSymbols(context, symbols)
-      .withFunctions(OptionSort.functions(symbols))
-      .withSorts(OptionSort.sorts(symbols))
+      .withFunctions(optionFunctions(symbols))
+      .withSorts(optionSortOpt(symbols).toSeq)
 
     val dependencies: Set[Identifier] =
       (symbols.functions.keySet ++ symbols.sorts.keySet ++ symbols.classes.keySet)

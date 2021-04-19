@@ -11,7 +11,7 @@ trait ReturnElimination
     with SimpleFunctions
     with oo.IdentityTypeDefs
     with oo.IdentityClasses
-    with utils.SyntheticSorts { self =>
+    with utils.ControlFlowSort { self =>
 
   val s: Trees
   val t: Trees

@@ -8,7 +8,7 @@ trait TypeEncoding
   extends ExtractionPipeline
      with SimpleSorts
      with oo.CachingPhase
-     with utils.SyntheticSorts { self =>
+     with utils.OptionSort { self =>
 
   val s: Trees
   val t: Trees
@@ -554,15 +554,18 @@ trait TypeEncoding
   // - the descendant class definitions
   // - the synthetic OptionSort definitions
   private[this] val classUnapplyCache = new ExtractionCache[s.ClassDef, t.FunDef]({ (cd, context) =>
-    ClassKey(cd) + SetKey(cd.descendants(context.symbols).toSet) + OptionSort.key(context.symbols)
+    ClassKey(cd) + SetKey(cd.descendants(context.symbols).toSet) + new SeqKey(
+      context.symbols.lookup.get[s.ADTSort]("stainless.internal.Option").map(SortKey(_)).toSeq ++
+      context.symbols.lookup.get[s.FunDef]("stainless.internal.Option.isEmpty").map(FunctionKey(_)) ++
+      context.symbols.lookup.get[s.FunDef]("stainless.internal.Option.get").map(FunctionKey(_))
+    )
   })
 
   private[this] def classUnapply(id: Identifier)(implicit context: TransformerContext): t.FunDef = {
     import context.symbols
     val cd = symbols.getClass(id)
     classUnapplyCache.cached(cd, context) {
-      import OptionSort._
-      mkFunDef(unapplyID(cd.id), t.Unchecked, t.Synthetic, t.IsUnapply(isEmpty, get))() { _ =>
+      mkFunDef(unapplyID(cd.id), t.Unchecked, t.Synthetic, t.IsUnapply(optionIsEmpty, optionGet))() { _ =>
         val cons = constructors(cd)
         def condition(e: t.Expr): t.Expr = t.orJoin(cons.map(t.IsConstructor(e, _)))
 
@@ -586,13 +589,16 @@ trait TypeEncoding
 
   // The unapply function only depends on the synthetic OptionSort
   private[this] val unapplyAnyCache = new ExtractionCache[s.Symbols, t.FunDef](
-    (_, context) => OptionSort.key(context.symbols)
+    (_, context) => new SeqKey(
+      context.symbols.lookup.get[s.ADTSort]("stainless.internal.Option").map(SortKey(_)).toSeq ++
+      context.symbols.lookup.get[s.FunDef]("stainless.internal.Option.isEmpty").map(FunctionKey(_)) ++
+      context.symbols.lookup.get[s.FunDef]("stainless.internal.Option.get").map(FunctionKey(_))
+    )
   )
 
   private[this] def unapplyAny(implicit context: TransformerContext): t.FunDef = unapplyAnyCache.cached(context.symbols, context) {
     implicit val symbols = context.symbols
-    import OptionSort.{value => _, _}
-    mkFunDef(FreshIdentifier("InstanceOf"), t.Unchecked, t.Synthetic, t.IsUnapply(isEmpty, get))("A", "B") {
+    mkFunDef(FreshIdentifier("InstanceOf"), t.Unchecked, t.Synthetic, t.IsUnapply(optionIsEmpty, optionGet))("A", "B") {
       case Seq(a, b) => (
         Seq("p" :: (a =>: t.BooleanType()), "t" :: (a =>: b), "x" :: a),
         T(option)(b), { case Seq(p, t, x) =>
@@ -1188,10 +1194,10 @@ trait TypeEncoding
     def functions: Seq[t.FunDef] =
       symbols.classes.keys.toSeq.flatMap(id => Seq(classInstance(id)(this), classUnapply(id)(this))) ++
       symbols.sorts.keys.flatMap(id => Seq(sortInstance(id)(this), sortConvert(id)(this))) ++
-      OptionSort.functions :+ unapplyAny(this)
+      optionFunctions :+ unapplyAny(this)
 
     def sorts: Seq[t.ADTSort] =
-      OptionSort.sorts :+ refSort
+      optionSortOpt.toSeq :+ refSort
 
     /** Duplicate function [[encoded]] that was derived from [[original]] into
      *  another function without the reified type parameters and an empty body.
