@@ -14,14 +14,14 @@ object BVMaxInterpret {
   case class BVAnd(out: Reg, ra: Reg, rb: Reg) extends Op
 
   case class State(
-    registers: CMap[Reg, Int],
+    registers: CompleteMap[Reg, Int],
   ) {
     def load(reg: Reg): Int = registers(reg)
     def store(reg: Reg, v: Int): State = copy(registers = registers.updated(reg, v))
   }
 
   object State {
-    def empty: State = State(CMap(_ => 0))
+    def empty: State = State(CompleteMap(_ => 0))
   }
 
   def eval1(op: Op, state: State): Int = op match {
