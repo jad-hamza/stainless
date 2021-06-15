@@ -261,7 +261,7 @@ trait AntiAliasing
         private def checkAliasing(expr: Expr, args: Seq[Expr]): Unit = {
           val argTargets: Seq[((Expr, Set[Target]), Int)] =
             args.filter(arg => isMutableType(arg.getType))
-              .map(arg => arg -> Try(getAllTargets(arg)).toOption
+              .map(arg => arg -> Try(getAllTargets(arg, Seq.empty, modifying = false)).toOption
                 .getOrElse(
                   exprOps.variablesOf(arg)
                     .filter(v => isMutableType(v.tpe))
@@ -308,12 +308,12 @@ trait AntiAliasing
 
             val updates1 =
               targets1.toSeq map { target =>
-                val applied = updatedTarget(target + ArrayAccessor(index1), ArraySelect(array2, index2).setPos(swap))
+                val applied = updatedTarget(target :+ ArrayAccessor(index1), ArraySelect(array2, index2).setPos(swap))
                 transform(Assignment(target.receiver, applied).setPos(swap), env)
               }
             val updates2 =
               targets2.toSeq map { target =>
-                val applied = updatedTarget(target + ArrayAccessor(index2), temp.toVariable)
+                val applied = updatedTarget(target :+ ArrayAccessor(index2), temp.toVariable)
                 transform(Assignment(target.receiver, applied).setPos(swap), env)
               }
             val updates = updates1 ++ updates2
@@ -327,7 +327,7 @@ trait AntiAliasing
             // see https://github.com/epfl-lara/stainless/pull/920 for discussion
 
             val newExpr = transform(e, env)
-            val targets = Try(getAllTargets(newExpr))
+            val targets = Try(getAllTargets(newExpr, Seq.empty, modifying = false))
 
             if (targets.isSuccess) {
               // This branch handles all cases when targets can be precisely computed, namely when
@@ -354,7 +354,11 @@ trait AntiAliasing
               // for all effects of `b` whose receiver is `vd`
               val copyEffects = effects(b).filter(_.receiver == vd.toVariable).flatMap { eff =>
                 // we apply the effect on the bound expression (after transformation)
+                println("eff", eff)
+                println("newExpr", newExpr)
+                println("eff.on(newExpr)", eff.on(newExpr))
                 eff.on(newExpr).map { eff2 =>
+                  println("eff2", eff2)
                   Assignment(eff2.receiver,
                     updatedTarget(
                       Target(eff2.receiver, None, eff2.path),
@@ -417,7 +421,7 @@ trait AntiAliasing
               throw MalformedStainlessCode(up, "Unsupported form of array update")
 
             Block(targets.toSeq map { target =>
-              val applied = updatedTarget(target + ArrayAccessor(i), v)
+              val applied = updatedTarget(target :+ ArrayAccessor(i), v)
               transform(Assignment(target.receiver, applied).copiedFrom(up), env)
             }, UnitLiteral().copiedFrom(up)).copiedFrom(up)
 
@@ -429,7 +433,7 @@ trait AntiAliasing
               throw MalformedStainlessCode(up, "Unsupported form of map update")
 
             Block(targets.toSeq map { target =>
-              val applied = updatedTarget(target + MutableMapAccessor(k), v)
+              val applied = updatedTarget(target :+ MutableMapAccessor(k), v)
               transform(Assignment(target.receiver, applied).copiedFrom(up), env)
             }, UnitLiteral().copiedFrom(up)).copiedFrom(up)
 
@@ -443,7 +447,7 @@ trait AntiAliasing
             val accessor = typeToAccessor(o.getType, id)
 
             Block(targets.toSeq map { target =>
-              val applied = updatedTarget(target + accessor, v)
+              val applied = updatedTarget(target :+ accessor, v)
               transform(Assignment(target.receiver, applied).copiedFrom(as), env)
             }, UnitLiteral().copiedFrom(as)).copiedFrom(as)
 
